@@ -24,26 +24,11 @@ function handleCommands(data) {
                return;
            }
 
-            var desiredRole = data.args[0];
-            var role = null;
+            var desiredRole = data.args[0], desiredStatus = "online";
+            var role = resolveRole(server, desiredRole);
 
-            var desiredStatus = "online";
             if (data.args.length >= 2)
                 desiredStatus = data.args[1].toLowerCase();
-
-            var matchedRole = /(?:<@&)?(\d+)>?/.exec(desiredRole);
-            if (matchedRole) {
-                desiredRole = matchedRole[1];
-                role = server.roles[desiredRole];
-            } else {
-                for (var roleId in server.roles) {
-                    var currentRole = api._discord.servers[guildId].roles[roleId];
-                    if (currentRole.name === desiredRole) {
-                        role = currentRole;
-                        break;
-                    }
-                }
-            }
 
             if (role)
             {
@@ -52,7 +37,7 @@ function handleCommands(data) {
                 {
                     var member = server.members[id], user = api._discord.users[id];
                     // Skip member who's status is undesirable, if specified
-                    if (desiredStatus && member.status.toLowerCase() == desiredStatus)
+                    if (desiredStatus && member.status.toLowerCase() != desiredStatus)
                         continue;
 
                     if (member.roles.indexOf(role.id) != -1)
@@ -80,27 +65,11 @@ function handleCommands(data) {
                 return;
             }
 
-            var desiredRole = data.args[0], desiredStatus == "online";
-            var role = null;
+            var desiredRole = data.args[0], desiredStatus = "online";
+            var role = resolveRole(server, desiredRole);
+
             if (data.args.length >= 2)
                 desiredStatus = data.args[1].toLowerCase();
-
-            var matchedRole = /(?:<@&)?(\d+)>?/.exec(desiredRole);
-            if (matchedRole) {
-                desiredRole = matchedRole[1];
-                role = server.roles[desiredRole];
-            }
-            else {
-                for (var roleId in server.roles)
-                {
-                    var currentRole = api._discord.servers[guildId].roles[roleId];
-                    if (currentRole.name === desiredRole)
-                    {
-                        role = currentRole;
-                        break;
-                    }
-                }
-            }
 
             if (role)
             {
@@ -175,15 +144,33 @@ function log(data)
     console.log(data);
 }
 
-function findByRole(roleName)
+function resolveRole(server, roleIdentifier)
 {
+    var role == null;
 
+    var matchedRole = /(?:<@&)?(\d+)>?/.exec(roleIdentifier);
+    if (matchedRole) {
+        desiredRole = matchedRole[1];
+        role = server.roles[desiredRole];
+    }
+    else {
+        for (var roleId in server.roles)
+        {
+            var currentRole = api._discord.servers[guildId].roles[roleId];
+            if (currentRole.name === roleIdentifier)
+            {
+                role = currentRole;
+                break;
+            }
+        }
+    }
+    return role;
 }
 
 module.exports = {
     meta_inf: {
         name: "Sharlayan Commands",
-        version: "1.0",
+        version: "1.0.0.1",
         description: "Sharlayan Package",
         author: "Emraell"
     },
