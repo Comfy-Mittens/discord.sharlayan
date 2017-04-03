@@ -27,6 +27,10 @@ function handleCommands(data) {
             var desiredRole = data.args[0];
             var role = null;
 
+            var desiredStatus = "online";
+            if (data.args.length >= 2)
+                desiredStatus = data.args[1].toLowerCase();
+
             var matchedRole = /(?:<@&)?(\d+)>?/.exec(desiredRole);
             if (matchedRole) {
                 desiredRole = matchedRole[1];
@@ -47,6 +51,10 @@ function handleCommands(data) {
                 for(var id in server.members)
                 {
                     var member = server.members[id], user = api._discord.users[id];
+                    // Skip member who's status is undesirable, if specified
+                    if (desiredStatus && member.status.toLowerCase() == desiredStatus)
+                        continue;
+
                     if (member.roles.indexOf(role.id) != -1)
                     {
                         users.push(id);
@@ -72,8 +80,10 @@ function handleCommands(data) {
                 return;
             }
 
-            var desiredRole = data.args[0];
+            var desiredRole = data.args[0], desiredStatus == "online";
             var role = null;
+            if (data.args.length >= 2)
+                desiredStatus = data.args[1].toLowerCase();
 
             var matchedRole = /(?:<@&)?(\d+)>?/.exec(desiredRole);
             if (matchedRole) {
@@ -98,6 +108,10 @@ function handleCommands(data) {
                 for(var id in server.members)
                 {
                     var member = server.members[id], user = api._discord.users[id];
+
+                    if (desiredStatus && desiredStatus != member.status.toLowerCase())
+                        continue;
+
                     if (member.roles.length == 0)
                     {
                         api._discord.addToRole({
@@ -124,10 +138,19 @@ function handleCommands(data) {
         case "listnorole":
         case "listnoroles":
         {
+            var desiredStatus = "online";
+            if (data.args.length >= 1)
+                desiredStatus = data.args[0].toLowerCase();
+
             var users = [];
             for(var id in server.members)
             {
                 var member = server.members[id], user = api._discord.users[id];
+
+                // Skip members with undesirable status, if specified
+                if (desiredStatus && desiredStatus != member.status.toLowerCase())
+                    continue;
+
                 if (member.roles.length == 0)
                 {
                     users.push(id);
