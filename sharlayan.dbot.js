@@ -17,12 +17,12 @@ function handleCommands(data) {
 
     switch(data.cmd)
     {
-       case "findbyrole": {
-           if (data.args.length == 0)
-           {
-               api.Messages.send(data.channelID, "No role to find");
-               return;
-           }
+        case "findbyrole": {
+            if (data.args.length == 0)
+            {
+                api.Messages.send(data.channelID, "No role to find");
+                return;
+            }
 
             var desiredRole = data.args[0], desiredStatus = "online";
             var role = resolveRole(server, desiredRole);
@@ -36,8 +36,9 @@ function handleCommands(data) {
                 for(var id in server.members)
                 {
                     var member = server.members[id], user = api._discord.users[id];
-                    // Skip member who's status is undesirable, if specified
-                    if (desiredStatus && member.status.toLowerCase() != desiredStatus)
+
+                    // Skip members with undesirable status, if specified
+                    if (!checkStatus(member, desiredStatus))
                         continue;
 
                     if (member.roles.indexOf(role.id) != -1)
@@ -55,7 +56,7 @@ function handleCommands(data) {
                 api.Messages.send(data.channelID, `No role found. I searched for '${data.args[0]}'`);
             }
             break;
-       }
+        }
         case "addnorolesto":
         case "addnoroleto":
         {
@@ -78,7 +79,8 @@ function handleCommands(data) {
                 {
                     var member = server.members[id], user = api._discord.users[id];
 
-                    if (desiredStatus && desiredStatus != member.status.toLowerCase())
+                    // Skip members with undesirable status, if specified
+                    if (!checkStatus(member, desiredStatus))
                         continue;
 
                     if (member.roles.length == 0)
@@ -116,8 +118,10 @@ function handleCommands(data) {
             {
                 var member = server.members[id], user = api._discord.users[id];
 
+                console.log(member, user);
+
                 // Skip members with undesirable status, if specified
-                if (desiredStatus && desiredStatus != member.status.toLowerCase())
+                if (!checkStatus(member, desiredStatus))
                     continue;
 
                 if (member.roles.length == 0)
@@ -131,7 +135,11 @@ function handleCommands(data) {
                 api.Messages.send(data.channelID, `I found no users without any roles.`);
             break;
         }
-       default: {;
+        case "mystatus": {
+            api.Messages.send(data.channelID, `Status is: ${server.members[data.userID].status}`);
+            break;
+        }
+        default: {;
             console.log(data);
             break;
         }
@@ -146,7 +154,7 @@ function log(data)
 
 function resolveRole(server, roleIdentifier)
 {
-    var role == null;
+    var role = null;
 
     var matchedRole = /(?:<@&)?(\d+)>?/.exec(roleIdentifier);
     if (matchedRole) {
@@ -165,6 +173,20 @@ function resolveRole(server, roleIdentifier)
         }
     }
     return role;
+}
+
+function getMemberStatus(member)
+{
+    if (!member.status)
+        return "offline";
+    return member.status;
+}
+
+function checkStatus(member, status)
+{
+    if (!member || !status)
+        return false;
+    return getMemberStatus(member).toLowerCase() == status;
 }
 
 module.exports = {
