@@ -13,3 +13,6 @@ Find all users without any roles
 
 ## !addNoRolesTo [RoleName | RoleId | RoleMention]
 Add any users without any roles to the specified role
+
+## !userAge [Username | Nickname | Mention]
+Displays how long the user has been on the server, in days.
