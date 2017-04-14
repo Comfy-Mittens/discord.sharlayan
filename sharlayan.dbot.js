@@ -24,8 +24,8 @@ function diffDays(firstDate, secondDate, setToMidnight) {
 function handleCommands(data) {
     commandArgs = data;
 
-    var guildId = api._discord.channels[data.channelID].guild_id;
-    var server = api._discord.servers[guildId];
+    var guildID = api._discord.channels[data.channelID].guild_id;
+    var server = api._discord.servers[guildID];
 
     if (!server) {
         api.Messages.send(data.channelID, "Couldn't find origin server");
@@ -40,7 +40,7 @@ function handleCommands(data) {
             }
 
             var desiredRole = data.args[0], desiredStatus = null;
-            var role = resolveRole(guildId, server, desiredRole);
+            var role = resolveRole(guildID, server, desiredRole);
 
             if (data.args.length >= 2)
                 desiredStatus = data.args[1].toLowerCase();
@@ -76,7 +76,7 @@ function handleCommands(data) {
             }
 
             var desiredRole = data.args[0], desiredStatus = "online";
-            var role = resolveRole(guildId, server, desiredRole);
+            var role = resolveRole(guildID, server, desiredRole);
 
             if (data.args.length >= 2)
                 desiredStatus = data.args[1].toLowerCase();
@@ -92,7 +92,7 @@ function handleCommands(data) {
 
                     if (member.roles.length == 0) {
                         api._discord.addToRole({
-                            "serverID": guildId,
+                            "serverID": guildID,
                             "userID": id,
                             "roleID": role.id
                         }, function (info1, info2) {
@@ -117,20 +117,15 @@ function handleCommands(data) {
             if (data.args.length >= 1)
                 desiredStatus = data.args[0].toLowerCase();
 
-            var users = [];
-            for (var id in server.members) {
-                var member = server.members[id], user = api._discord.users[id];
-
-                console.log(member, user);
-
+            var users = findMembers(server, function (member, user) {
                 // Skip members with undesirable status, if specified
                 if (!checkStatus(member, desiredStatus))
-                    continue;
-
-                if (member.roles.length == 0) {
-                    users.push(id);
-                }
-            }
+                    return false;
+                if (member.roles.length == 0)
+                    return true;
+                ;
+                return false;
+            });
             if (users.length > 0)
                 api.Messages.send(data.channelID, `I found ${users.length} with no roles. They are: <@${users.join(">, <@")}>`);
             else
@@ -173,12 +168,172 @@ function handleCommands(data) {
             }
             break;
         }
+        case "prune": {
+            var pruneData = get(data.channelID, "prune");
+            if (pruneData) {
+                api.Messages.send(data.channelID, `Prune is currently in use by <@${pruneData.user}>. Cannot prune again.`);
+                return;
+            } else {
+                if (data.args == 0) {
+                    api.Messages.send(data.channelID, `Format: !prune Reason`);
+                    return;
+                }
+                var pruneReason = data.args[0];
+                if (data.args.length > 1)
+                    pruneReason = data.args.join(" ");
+                pruneData = {
+                    user: data.userID,
+                    start: new Date(), serverID: guildID,
+                    reason: pruneReason,
+                    targets: findMembers(server, function (member, user) {
+                        return member.roles.length == 0;
+                    }),
+                    queried: false,
+                    index: 0,
+                    removed: [],
+                    show: function () {
+                        if (this.index >= this.targets.length) {
+                            var msg = `Pruning complete.`;
+                            if (this.removed.length > 0) {
+                                msg += `\r\nI successfully removed ${this.removed.length} user(s): <@${this.removed.join(">, <@")}>\r\n`;
+                                msg += "``" + `:no_entry_sign: kick | <@${this.removed.join("> | <@")}> | ${this.reason}` + "``";
+                            }
+                            api.Messages.send(data.channelID, msg);
+                            unset(data.channelID, "prune");
+                        } else {
+                            api._discord.sendMessage({
+                                to: data.channelID,
+                                message: `[${this.index + 1}/${this.targets.length}] Are you sure you want to kick <@${this.targets[this.index]}>? Enter Yes or No.`,
+                                tts: false,
+                                typing: false
+                            }, (function(pruneData, channelID) {
+                                return function(error, response) {
+                                    if (!error) {
+                                        pruneData.queried = true;
+                                        set(channelID, "prune", pruneData);
+                                    } else {
+
+                                    }
+                                };
+                            })(this, data.channelID));
+                        }
+                    },
+                    handle: function (response) {
+                        if (!this.queried)
+                            return;
+                        switch (response.trim().toLowerCase()) {
+                            case "y":
+                            case "yes":
+                                this.queried = false;
+                                api._discord.kick({
+                                        "serverID": this.serverID,
+                                        "userID": this.targets[this.index]
+                                    },
+                                    (function (context, target) {
+                                        return function (error) {
+                                            var pruneData = get(context, "prune");
+                                            if (pruneData) {
+                                                if (!error) {
+                                                    pruneData.removed.push(target);
+                                                } else {
+                                                    api.Messages.send(context, `I failed to kick <@${target}>`);
+                                                }
+                                                set(data.channelID, "prune", pruneData);
+                                                pruneData.show();
+                                            }
+                                        }
+                                    })(data.channelID, this.targets[this.index++]));
+                                set(data.channelID, "prune", this);
+                                break;
+                            case "n":
+                                this.queried = false;
+                                this.index++;
+                                set(data.channelID, "prune", this);
+                                this.show();
+                                break;
+                            case "c":
+                            case "cancel":
+
+                                var msg = `Pruning cancelled.`;
+                                if (this.removed.length > 0) {
+                                    msg += `\r\nI successfully removed ${this.removed.length} user(s): <@${this.removed.join(">, <@")}>\r\n`;
+                                    msg += "``" + `:no_entry_sign: kick | <@${this.removed.join("> | <@")}> | ${this.reason}` + "``";
+                                }
+                                api.Messages.send(data.channelID, msg);
+                                unset(data.channelID, "prune");
+                                break;
+                        }
+                    }
+                }
+                set(data.channelID, "prune", pruneData);
+                api.Messages.send(data.channelID, `Found ${pruneData.targets.length} users eligible for pruning.`);
+                pruneData.show();
+            }
+            break;
+        }
+        case "_set": {
+            if (data.args.length == 2)
+                set(data.channelID, data.args[0], data.args[1]);
+            break;
+        }
+        case "_get": {
+            if (data.args.length >= 1) {
+                api.Messages.send(data.channelID, `Value: '${get(data.channelID, data.args[0])}`);
+                console.log(get(data.channelID, data.args[0]));
+            }
+            break;
+        }
         default: {
-            ;
             console.log(data);
             break;
         }
     }
+}
+
+function handleMessage(messageData) {
+    /*
+     {
+     username: _username,
+     userID: _userID,
+     channelID: _channelID,
+     message: discord.fixMessage(_message),
+     msg: discord.fixMessage(_message),
+     message_raw: _message,
+     rawEvent: _rawEvent
+     }
+     */
+    // Prune
+    var pruneData = get(messageData.channelID, "prune");
+    if (pruneData && pruneData.handle && pruneData.user == messageData.userID) {
+        // If we're pruning, and the user responding.
+        pruneData.handle(messageData.message);
+    }
+}
+
+function findMembers(server, comparer) {
+    var users = [];
+    for (var id in server.members) {
+        var member = server.members[id], user = api._discord.users[id];
+
+        // console.log(member, user);
+
+        if (comparer(member, user)) {
+            users.push(id)
+        }
+    }
+    return users;
+}
+
+function get(context, key) {
+    return api.sharedStorage.getItemSync(`${context}-${key}`);
+}
+
+function set(context, key, value) {
+    return api.sharedStorage.setItemSync(`${context}-${key}`, value);
+}
+
+function unset(context, key) {
+    return api.sharedStorage.removeItemSync(`${context}-${key}`);
 }
 
 function log(data) {
@@ -231,9 +386,21 @@ module.exports = {
         api = _api;
     },
     start: function () {
+        // Purge Prune session
+        var toPurge = [];
+        api.sharedStorage.forEach(function (key) {
+            if (/\d+-prune/.test(key))
+                toPurge.push(key);
+        });
+        for (var i in toPurge) {
+            api.sharedStorage.removeItemSync(toPurge[i]);
+        }
         api.Events.on("chatCmd", handleCommands);
+        api.Events.on("message", handleMessage);
+
     },
     stop: function () {
         api.Events.removeListener("chatCmd", handleCommands);
+        api.Events.removeListener("message", handleMessage);
     }
 }

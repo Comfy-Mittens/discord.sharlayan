@@ -16,3 +16,7 @@ Add any users without any roles to the specified role
 
 ## !userAge [Username | Nickname | Mention]
 Displays how long the user has been on the server, in days.
+
+## !prune Reason
+Kicks users with no roles and display a modlog entry.
+This command can be cancelled, but users already kicked will remain kicked. Duh.
