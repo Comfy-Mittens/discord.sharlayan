@@ -271,6 +271,30 @@ function handleCommands(data) {
             }
             break;
         }
+        case "blockletter": {
+            api.Messages.send(data.channelID, _blockletter(data.args.join(' ')));
+            break;
+        }
+        case "at": {
+            var strLeft = data.args.shift();
+            var strRight = data.args.shift();
+            var left, right;
+            for (var i in server.emojis) {
+                var emoji = server.emojis[i];
+                if (emoji.name == strLeft) {
+                    left = `:${strLeft}:${emoji.id}`;
+                }
+                if (emoji.name == strRight) {
+                    right = `:${strRight}:${emoji.id}`;
+                }
+                if (left && right) {
+                    break;
+                }
+            }
+            var message = data.args.join(' ');
+            api.Messages.send(data.channelID, _atText(left, right, message));
+            break;
+        }
         case "_set": {
             if (data.args.length == 2)
                 set(data.channelID, data.args[0], data.args[1]);
@@ -308,6 +332,23 @@ function handleMessage(messageData) {
         // If we're pruning, and the user responding.
         pruneData.handle(messageData.message);
     }
+}
+
+function _blockletter(message) {
+    message = message.toLowerCase();
+    var completeMessage = "";
+    for(var i = 0; i < message.length; i++) {
+        if (/[a-z]/.test(message[i])) {
+            completeMessage += ":regional_indicator_" + message[i] + ": ";
+        } else {
+            completeMessage += message[i];
+        }
+    }
+    return completeMessage;
+}
+
+function _atText(left, right, message) {
+    return `<${left}> ${message} <${right}>`
 }
 
 function findMembers(server, comparer) {
