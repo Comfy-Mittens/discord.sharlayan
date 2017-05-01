@@ -55,7 +55,7 @@ function handleCommands(data) {
                 if (users.length > 0)
                     api.Messages.send(data.channelID, `I found ${users.length} users with the role '${role.name}'. They are: <@${users.join(">, <@")}>`);
                 else
-                    api.MessageKs.send(data.channelID, `I found no users with the role '${role.name}'.`);
+                    api.Messages.send(data.channelID, `I found no users with the role '${role.name}'.`);
             }
             else {
                 api.Messages.send(data.channelID, `No role found. I searched for '${data.args[0]}'`);
