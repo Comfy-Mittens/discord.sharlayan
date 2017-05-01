@@ -46,22 +46,16 @@ function handleCommands(data) {
                 desiredStatus = data.args[1].toLowerCase();
 
             if (role) {
-                var users = [];
-                for (var id in server.members) {
-                    var member = server.members[id], user = api._discord.users[id];
-
+                var users = findMembers(server, function(member, user) {
                     // Skip members with undesirable status, if specified
                     if (!checkStatus(member, desiredStatus))
-                        continue;
-
-                    if (member.roles.indexOf(role.id) != -1) {
-                        users.push(id);
-                    }
-                }
+                        return false;
+                    return member.roles.indexOf(role.id) != -1;
+                });
                 if (users.length > 0)
                     api.Messages.send(data.channelID, `I found ${users.length} users with the role '${role.name}'. They are: <@${users.join(">, <@")}>`);
                 else
-                    api.Messages.send(data.channelID, `I found no users with the role '${role.name}'.`);
+                    api.MessageKs.send(data.channelID, `I found no users with the role '${role.name}'.`);
             }
             else {
                 api.Messages.send(data.channelID, `No role found. I searched for '${data.args[0]}'`);
@@ -446,7 +440,6 @@ function handleCommands(data) {
                         api.Messages.send(data.channelID, `resolveRole('${roleId}', '${matchExact}', '${all}') = ${resolvedRole}`);
                     }
                 }
-
             }
             break;
         }
@@ -800,7 +793,7 @@ function sendRole(roleSnowflake, channel) {
                 {
                     "name": "Created On",
                     "inline": false,
-                    "value": new Date(((role.id >> 22) + 1420070400000))
+                    "value": new Date((role.id / 4194304) + 1420070400000).toISOString()
                 },
                 {
                     "name": "Members",
